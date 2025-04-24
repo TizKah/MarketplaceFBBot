@@ -62,3 +62,11 @@ Necesitás tener Python instalado (mejor 3.8+).
 ## 🤝 Querés Ayudar?
 
 Si tenés ideas para mejorarlo, encontrás algún bug o querés agregar algo, bienvenido sea! Mandale un issue o un pull request.
+
+## TO-DO
+* Manejo con DB para usuarios. Linkear USER_ID con notificaciones activas e historiales previos.
+* Modularizar en más archivos y funciones
+* Testear límites del endpoint (ej: cuánto tarda en aparecer una nueva publicación en el bot desde que realmente se creó).
+* Arreglar IMG del HTML.
+* Mejorar presentación por mensaje -> Dejar decidir cuántos elementos mostrar.
+* Para búsqueda en marketplace -> Utilizar 'cursor' para obtener más resultados (de nulo interés para los notificaciones). 
