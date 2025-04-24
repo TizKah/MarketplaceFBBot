@@ -69,4 +69,5 @@ Si tenés ideas para mejorarlo, encontrás algún bug o querés agregar algo, bi
 * Testear límites del endpoint (ej: cuánto tarda en aparecer una nueva publicación en el bot desde que realmente se creó).
 * Arreglar IMG del HTML.
 * Mejorar presentación por mensaje -> Dejar decidir cuántos elementos mostrar.
-* Para búsqueda en marketplace -> Utilizar 'cursor' para obtener más resultados (de nulo interés para los notificaciones). 
+* Para búsqueda en marketplace -> Utilizar 'cursor' para obtener más resultados (de nulo interés para los notificaciones).
+* DB Implementada -> Implementar thread único como writer de la db con una cola
