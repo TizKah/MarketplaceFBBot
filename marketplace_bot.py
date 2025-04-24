@@ -12,7 +12,8 @@ from dotenv import load_dotenv
 import os
 from telebot import types
 import logging
-import html as html_lib # Renombrado para claridad
+import html as html_lib
+import db
 
 # Configuración inicial
 load_dotenv()
@@ -35,7 +36,7 @@ if not FACEBOOK_COOKIE:
 
 
 # Constantes
-REFRESH_INTERVAL_SECONDS = 300 # Intervalo de monitoreo (Ej: 5 minutos)
+REFRESH_INTERVAL_SECONDS = 20 # Intervalo de monitoreo (Ej: 5 minutos)
 MAX_PRODUCT_HISTORY = 30
 DEFAULT_REQUEST_TIMEOUT = 30 # Timeout para las peticiones HTTP
 
@@ -60,6 +61,12 @@ active_monitoring_threads = {}
 first_scrape_done = defaultdict(bool)
 # search_in_progress: { user_id: bool } - Flag para evitar que un usuario inicie múltiples búsquedas manuales a la vez
 search_in_progress = defaultdict(bool)
+
+
+# logger.info("Inicializando base de datos y cargando datos...")
+# db.create_tables()
+# db.load_all_data_into_memory(user_searches, product_history)
+# logger.info("Datos cargados.")
 
 
 # --- Funciones Auxiliares ---
@@ -213,7 +220,7 @@ def generate_html(products, search_term):
 """
     return html_content
 
-
+# from market_scraping import fetch_products_graphql 
 # --- Nueva Función para la Lógica de Scraping con Requests ---
 def fetch_products_graphql(search_term, user_cookie, latitude=DEFAULT_LATITUDE, longitude=DEFAULT_LONGITUDE, radius=DEFAULT_RADIUS_KM):
 
@@ -233,7 +240,7 @@ def fetch_products_graphql(search_term, user_cookie, latitude=DEFAULT_LATITUDE, 
         'origin': 'https://www.facebook.com',
         'pragma': 'no-cache',
         'priority': 'u=1, i',
-        'referer': f'https://www.facebook.com/marketplace/104009312969362/search/?query={search_term.replace(" ", "%20")}',
+        'referer': f'https://www.facebook.com/marketplace/rosario/search?sortBy=creation_time_descend&query={search_term.replace(" ", "%20")}&exact=false',
         'sec-ch-ua': '"Brave";v="135", "Not-A.Brand";v="8", "Chromium";v="135"',
         'sec-ch-ua-full-version-list': '"Brave";v="135.0.0.0", "Not-A.Brand";v="8.0.0.0", "Chromium";v="135.0.0.0"',
         'sec-ch-ua-mobile': '?0',
@@ -266,6 +273,7 @@ def fetch_products_graphql(search_term, user_cookie, latitude=DEFAULT_LATITUDE, 
                 "commerce_search_and_rp_category_id": [],
                 "commerce_search_and_rp_condition": None,
                 "commerce_search_and_rp_ctime_days": None,
+                'commerce_search_sort_by': 'CREATION_TIME_DESCEND',
                 "filter_location_latitude": latitude, 
                 "filter_location_longitude": longitude, 
                 "filter_price_lower_bound": 0,
@@ -454,7 +462,6 @@ def monitor_search(user_id, chat_id, search_term, stop_event: threading.Event):
                     notified_products[user_id][search_term].add(product_id)
                     # Añadir al principio del deque
                     product_history[user_id][search_term].appendleft(product)
-            # No es necesario podar el deque aquí si ya tiene maxlen
 
             first_scrape_done[key] = True # Marcar el primer scrapeo como completado
         else:
@@ -1185,11 +1192,12 @@ def handle_search_now_specific(call):
         markup = types.InlineKeyboardMarkup()
         history_count = len(current_history) # El historial puede tener más productos que los encontrados en esta búsqueda
 
+        ELEMENTS_SHOW_CHAT = 20
         if history_count > 0:
              # Ofrecer ver los 10 más recientes del historial o descargar todo el historial
              markup.add(
-                 types.InlineKeyboardButton(f"📱 Ver en chat ({min(10, history_count)})", callback_data=f"show_history_{search_term}_{min(10, history_count)}"),
-                 types.InlineKeyboardButton(f"📄 Descargar HTML ({history_count})", callback_data=f"download_history_{search_term}_all") # Usar 'all' para descargar todo el historial
+                types.InlineKeyboardButton(f"📱 Ver en chat ({min(ELEMENTS_SHOW_CHAT, history_count)})", callback_data=f"show_history_{search_term}_{min(ELEMENTS_SHOW_CHAT, history_count)}"),
+                types.InlineKeyboardButton(f"📄 Descargar HTML ({history_count})", callback_data=f"download_history_{search_term}_all")
              )
         else:
              # Esto no debería ocurrir si products > 0 y el historial se actualizó, pero es un caso de seguridad
@@ -1330,7 +1338,7 @@ def handle_display_history_results(call):
             )
             for product in products_to_process:
                  send_product_message(chat_id, product)
-                 time.sleep(0.6) # Pequeña pausa para evitar flood
+                 time.sleep(0.1)
 
         elif action_type == "download":
             html_content = generate_html(products_to_process, search_term)
