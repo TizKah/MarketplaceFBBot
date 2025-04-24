@@ -1,10 +1,9 @@
 # 🛍️ Alertas de Facebook Marketplace por Telegram
 
 ![Python](https://img.shields.io/badge/Python-3.8%2B-blue)
-![Telegram Bot API](https://img.shields.io/badge/Telegram%20Bot%20API-pyTelegramBotAPI-blue)
 ![Requests](https://img.shields.io/badge/HTTP%20Library-Requests-blue)
 ![GraphQL](https://img.shields.io/badge/Data%20Fetching-GraphQL-blue)
-![License](https://img.shields.io/github/license/tu_usuario_github/nombre_de_tu_repo)
+![License](https://img.shields.io/github/license/TizKah/Marketplace_Scrap_bot.git)
 
 Cansado de revisar Marketplace a cada rato para ver si aparece ese producto que buscás? Creé este bot de Telegram en Python justo para eso. **Te avisa al instante por Telegram** cuando encuentra productos nuevos en Facebook Marketplace para tus búsquedas.
 
