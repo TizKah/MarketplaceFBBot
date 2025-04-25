@@ -10,8 +10,7 @@ import os
 from telebot import types
 import logging
 import html as html_lib
-# import db
-
+import random
 
 USER_SEARCHES_FILE = 'user_searches.json'
 PRODUCT_HISTORY_FILE = 'product_history.json'
@@ -19,7 +18,6 @@ PRODUCT_HISTORY_FILE = 'product_history.json'
 user_searches_lock = threading.Lock()
 product_history_lock = threading.Lock()
 
-# Configuración inicial
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 FACEBOOK_COOKIE = os.getenv("FACEBOOK_COOKIE")
@@ -40,10 +38,15 @@ if not FACEBOOK_COOKIE:
 
 
 # Constantes
-REFRESH_INTERVAL_SECONDS = 200 # Intervalo de monitoreo (Ej: 5 minutos)
+REFRESH_INTERVAL_SECONDS_MIN = 185
+REFRESH_INTERVAL_SECONDS_MAX = 353
 MAX_PRODUCT_HISTORY = 30
-DEFAULT_REQUEST_TIMEOUT = 30 # Timeout para las peticiones HTTP
+DEFAULT_REQUEST_TIMEOUT = 30
 WAIT_FOR_BOT_SEC = 1
+
+def rand_refresh_interval():
+    return random.randint(REFRESH_INTERVAL_SECONDS_MIN, REFRESH_INTERVAL_SECONDS_MAX)
+
 
 # Coordenadas por defecto (Rosario)
 DEFAULT_LATITUDE = -32.95
@@ -587,9 +590,10 @@ def monitor_search(user_id, chat_id, search_term, stop_event: threading.Event):
         logger.info(f"Monitoreando: Buscando nuevos productos para '{search_term}' (Usuario: {user_id})")
         
         products = fetch_products_graphql(search_term, user_cookie)
-
+        refresh_interval = rand_refresh_interval()
+        
         if products is None:
-            logger.warning(f"La búsqueda GraphQL para '{search_term}' falló en este ciclo. Reintentando en {REFRESH_INTERVAL_SECONDS}s.")
+            logger.warning(f"La búsqueda GraphQL para '{search_term}' falló en este ciclo. Reintentando en {refresh_interval}s.")
             # No hay nuevos productos si la búsqueda falla. Esperar y reintentar.
         elif not products:
              logger.info(f"Búsqueda para '{search_term}' completada, no se encontraron productos.")
@@ -617,9 +621,9 @@ def monitor_search(user_id, chat_id, search_term, stop_event: threading.Event):
 
 
         # Esperar antes del siguiente ciclo, a menos que se solicite detener el hilo
-        logger.info(f"Monitoreo para '{search_term}' (Usuario: {user_id}) esperando {REFRESH_INTERVAL_SECONDS} segundos.")
+        logger.info(f"Monitoreo para '{search_term}' (Usuario: {user_id}) esperando {refresh_interval} segundos.")
         # Usa wait() con timeout para que el hilo pueda detenerse rápidamente si se llama stop_event.set()
-        stop_event.wait(REFRESH_INTERVAL_SECONDS)
+        stop_event.wait(refresh_interval)
 
 
     # El bucle terminó (por stop_event.is_set() o user_searches[user_id][search_term]['active'] == False)
