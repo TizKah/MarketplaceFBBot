@@ -1,14 +1,20 @@
+import json
+import requests
 
+DEFAULT_REQUEST_TIMEOUT = 30
 
-def fetch_products_graphql(search_term, user_cookie, latitude=DEFAULT_LATITUDE, longitude=DEFAULT_LONGITUDE, radius=DEFAULT_RADIUS_KM):
-
+def fetch_products_graphql(search_term, user_cookie, region, logger):
+    latitude = region["latitude"]
+    longitude = region["longitude"]
+    radius = region["radius"]
+    
     if not user_cookie:
         logger.error(f"Intento de búsqueda sin cookie para '{search_term}'")
         return None # No podemos buscar sin cookie
 
     request_url = "https://www.facebook.com/api/graphql/"
 
-    # --- Encabezados (Headers) ---
+    # --- Encabezados (Headers) - Copiados exactamente de tu script que funcionaba ---
     headers = {
         'accept': '*/*',
         'accept-language': 'es-ES,es;q=0.6',
@@ -18,7 +24,7 @@ def fetch_products_graphql(search_term, user_cookie, latitude=DEFAULT_LATITUDE, 
         'origin': 'https://www.facebook.com',
         'pragma': 'no-cache',
         'priority': 'u=1, i',
-        'referer': f'https://www.facebook.com/marketplace/104009312969362/search/?query={search_term.replace(" ", "%20")}',
+        'referer': f'https://www.facebook.com/marketplace/rosario/search?sortBy=creation_time_descend&query={search_term.replace(" ", "%20")}&exact=false',
         'sec-ch-ua': '"Brave";v="135", "Not-A.Brand";v="8", "Chromium";v="135"',
         'sec-ch-ua-full-version-list': '"Brave";v="135.0.0.0", "Not-A.Brand";v="8.0.0.0", "Chromium";v="135.0.0.0"',
         'sec-ch-ua-mobile': '?0',
@@ -51,6 +57,7 @@ def fetch_products_graphql(search_term, user_cookie, latitude=DEFAULT_LATITUDE, 
                 "commerce_search_and_rp_category_id": [],
                 "commerce_search_and_rp_condition": None,
                 "commerce_search_and_rp_ctime_days": None,
+                'commerce_search_sort_by': 'CREATION_TIME_DESCEND',
                 "filter_location_latitude": latitude, 
                 "filter_location_longitude": longitude, 
                 "filter_price_lower_bound": 0,
