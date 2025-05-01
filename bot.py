@@ -270,6 +270,7 @@ def save_search(message):
     chat_id = message.chat.id
     raw_search_term = message.text # Obtener el texto crudo del usuario
     search_term = raw_search_term.strip() # Eliminar espacios al inicio y final
+    user_searches[user_id]['waiting_for_search'] = False
 
     logger.debug(f"save_search - Received raw input: '{raw_search_term}' from user {user_id} (Chat: {chat_id})")
 
@@ -282,7 +283,6 @@ def save_search(message):
             "❌ El término de búsqueda no es válido. Por favor, intenta de nuevo con texto significativo.",
             reply_markup=create_inline_keyboard() # Volver al menú principal
         )
-        user_searches[user_id]['waiting_for_search'] = False
         return
 
     # --- NORMALIZATION ---
@@ -307,13 +307,11 @@ def save_search(message):
             }, back_button=False),
             parse_mode='HTML'
         )
-        user_searches[user_id]['waiting_for_search'] = False 
         return 
     
     # --- SAVE NEW ALERT ---
     # Si no es inválido y no existe, guardar la nueva alerta con el término normalizado
     user_searches[user_id][normalized_search_term] = {'active': False, 'chat_id': chat_id}
-    user_searches[user_id]['waiting_for_search'] = False
     save_data(user_searches, USER_SEARCHES_FILE, user_searches_lock)
     
     logger.info(f"save_search - New alert saved for user {user_id}: '{normalized_search_term}' (Chat: {chat_id})")
