@@ -8,6 +8,7 @@ from telebot import types
 import logging
 import html as html_lib
 import random
+from unidecode import unidecode
 
 # Archivos propios
 from persistence import monitor_from_history, save_data, load_user_searches, load_product_history
@@ -282,13 +283,12 @@ def save_search(message):
             reply_markup=create_inline_keyboard() # Volver al menú principal
         )
         user_searches[user_id]['waiting_for_search'] = False
-        save_data(user_searches, USER_SEARCHES_FILE, user_searches_lock)
         return
 
     # --- NORMALIZATION ---
     # Normalizar *después* de la validación inicial.
     # Convertir a minúsculas y reemplazar múltiples espacios con un solo espacio.
-    normalized_search_term = ' '.join(search_term.lower().split())
+    normalized_search_term = unidecode(' '.join(search_term.lower().split()))
     logger.debug(f"save_search - Normalized search term: '{normalized_search_term}'")
 
 
@@ -308,7 +308,6 @@ def save_search(message):
             parse_mode='HTML'
         )
         user_searches[user_id]['waiting_for_search'] = False 
-        save_data(user_searches, USER_SEARCHES_FILE, user_searches_lock)
         return 
     
     # --- SAVE NEW ALERT ---
@@ -351,17 +350,16 @@ def handle_new_search_callback(call):
      try:
          bot.delete_message(chat_id, call.message.message_id)
      except telebot.apihelper.ApiTelegramException:
-         pass # Ignorar si no se puede borrar (ej. mensaje muy viejo)
+         pass
 
      msg = bot.send_message(
          chat_id,
          "¿Qué producto deseas buscar y guardar como alerta? Ejemplo: 'TV 32 pulgadas'\n\n"
          "Escribe tu término de búsqueda:",
-         reply_markup=types.ForceReply() # Pedir una respuesta directa del usuario
+         reply_markup=types.ForceReply()
      )
      # Establecer el estado de espera para este usuario
      user_searches[user_id]['waiting_for_search'] = True
-     save_data(user_searches, USER_SEARCHES_FILE, user_searches_lock)
      bot.answer_callback_query(call.id)
 
 @bot.callback_query_handler(func=lambda call: call.data == "list_alerts")
