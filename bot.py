@@ -706,20 +706,20 @@ def delete_alert(key, search_term, user_id):
         stop_event.set()
         logger.info(f"Evento de parada enviado al eliminar alerta '{search_term}' (Usuario: {user_id})")
 
-        del user_searches[user_id][search_term]
-        save_data(user_searches, USER_SEARCHES_FILE, user_searches_lock)
-        
-        if not user_searches[user_id]:
-            del user_searches[user_id]
+    del user_searches[user_id][search_term]
+    save_data(user_searches, USER_SEARCHES_FILE, user_searches_lock)
+    
+    if not user_searches[user_id]:
+        del user_searches[user_id]
 
-        if user_id in product_history and search_term in product_history[user_id]:
-            del product_history[user_id][search_term]
-            save_data(product_history, PRODUCT_HISTORY_FILE, product_history_lock)
-            if not product_history[user_id]:
-                del product_history[user_id]
+    if user_id in product_history and search_term in product_history[user_id]:
+        del product_history[user_id][search_term]
+        save_data(product_history, PRODUCT_HISTORY_FILE, product_history_lock)
+        if not product_history[user_id]:
+            del product_history[user_id]
 
-        if key in first_scrape_done:
-                del first_scrape_done[key]
+    if key in first_scrape_done:
+            del first_scrape_done[key]
                 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("delete_"))
 def handle_delete_alert(call):
