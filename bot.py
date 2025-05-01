@@ -59,8 +59,6 @@ bot = telebot.TeleBot(BOT_TOKEN)
 # --- Estructuras de datos globales ---
 # user_searches: { user_id: { search_term: {'active': bool, 'chat_id': int}, ... } } - Guarda las alertas configuradas y su estado
 user_searches = defaultdict(dict)
-# notified_products: { user_id: { search_term: set(product_ids) } } - Rastrea los productos ya notificados por ID
-notified_products = defaultdict(lambda: defaultdict(set))
 # product_history: { user_id: { search_term: deque([product_dict, ...], maxlen=MAX_PRODUCT_HISTORY) } } - Guarda el historial reciente de productos encontrados
 product_history = defaultdict(lambda: defaultdict(lambda: deque(maxlen=MAX_PRODUCT_HISTORY)))
 # active_monitoring_threads: { f"{user_id}_{search_term}": threading.Event() } - Para controlar la ejecución de los hilos de monitoreo
@@ -91,9 +89,8 @@ def create_inline_keyboard(options=None, back_button=True, back_callback="main_m
         markup.add(buttons[2], buttons[3])
         markup.add(buttons[4], buttons[5])
     else:
-        # Teclado personalizado
         button_list = [types.InlineKeyboardButton(text, callback_data=callback) for text, callback in options.items()]
-        markup.add(*button_list) # Añade botones desempaquetados
+        markup.add(*button_list)
 
         if back_button:
             markup.add(types.InlineKeyboardButton("⬅️ Volver", callback_data=back_callback))
@@ -101,10 +98,7 @@ def create_inline_keyboard(options=None, back_button=True, back_callback="main_m
     return markup
 
 def is_valid_search_term(term):
-    """Valida que el término de búsqueda sea adecuado."""
-    if not term or not term.strip():
-        return False
-    return True
+    return (term and term.strip())
 
 def send_product_message(chat_id, product, reply_markup=None):
     """Envía un mensaje de Telegram con la información de un producto."""
@@ -162,8 +156,7 @@ def monitor_search(user_id, chat_id, search_term, stop_event: threading.Event):
     key = f"{user_id}_{search_term}"
     logger.info(f"Hilo de monitoreo iniciado para '{search_term}' (Usuario: {user_id})")
 
-    # Obtener la cookie del archivo .env (asumiendo que es una cookie global para el bot)
-    # Si quisieras cookies por usuario, tendrías que guardarlas y recuperarlas aquí.
+    # Obtener la cookie del archivo .env
     user_cookie = FACEBOOK_COOKIE
 
     if not user_cookie:
@@ -173,7 +166,7 @@ def monitor_search(user_id, chat_id, search_term, stop_event: threading.Event):
         user_searches[user_id][search_term]['active'] = False
         if key in active_monitoring_threads:
             del active_monitoring_threads[key]
-        return # Termina el hilo
+        return
 
     if not first_scrape_done[key]:
         logger.info(f"Realizando primer scrapeo (no notificar) para '{search_term}' (Usuario: {user_id})")
@@ -190,7 +183,6 @@ def monitor_search(user_id, chat_id, search_term, stop_event: threading.Event):
             for product in products:
                 product_id = product.get('id')
                 if product_id:
-                    notified_products[user_id][search_term].add(product_id)
                     product_history[user_id][search_term].appendleft(product)
             save_data(product_history, PRODUCT_HISTORY_FILE, product_history_lock)
                     
@@ -213,32 +205,29 @@ def monitor_search(user_id, chat_id, search_term, stop_event: threading.Event):
         
         if products is None:
             logger.warning(f"La búsqueda GraphQL para '{search_term}' falló en este ciclo. Reintentando en {refresh_interval}s.")
-            # No hay nuevos productos si la búsqueda falla. Esperar y reintentar.
+
         elif not products:
              logger.info(f"Búsqueda para '{search_term}' completada, no se encontraron productos.")
-             # No se encontraron productos en este ciclo, lo cual es normal. Esperar.
+
         else:
             new_products = []
             for product in products:
                 product_id = product.get('id')
-                if product_id and product_id not in notified_products[user_id][search_term] and product_id not in product_history[user_id][search_term]:
+                if product_id and product_not_in_history(product_id, user_id, search_term):
                     # ¡Producto nuevo encontrado!
                     logger.info(f"¡Nuevo producto encontrado para '{search_term}': {product.get('titulo', 'N/A')} ({product_id})")
-                    notified_products[user_id][search_term].add(product_id)
-                    product_history[user_id][search_term].appendleft(product) # Añadir al principio
+                    product_history[user_id][search_term].appendleft(product)
                     
-                    # El deque mantiene el tamaño máximo automáticamente
                     new_products.append(product)
             save_data(product_history, PRODUCT_HISTORY_FILE, product_history_lock)
 
-            # Notificar solo si hay productos nuevos Y ya se hizo el primer scrapeo (para no floodear al inicio)
+            # Notificar solo si hay productos nuevos Y ya se hizo el primer scrapeo
             if first_scrape_done[key] and new_products:
                 logger.info(f"Notificando {len(new_products)} productos nuevos para '{search_term}'")
                 for product in new_products:
                     send_product_message(chat_id, product)
 
 
-        # Esperar antes del siguiente ciclo, a menos que se solicite detener el hilo
         logger.info(f"Monitoreo para '{search_term}' (Usuario: {user_id}) esperando {refresh_interval} segundos.")
         # Usa wait() con timeout para que el hilo pueda detenerse rápidamente si se llama stop_event.set()
         stop_event.wait(refresh_interval)
@@ -249,10 +238,11 @@ def monitor_search(user_id, chat_id, search_term, stop_event: threading.Event):
     # Eliminar el evento de parada de la lista de hilos activos
     if key in active_monitoring_threads:
         del active_monitoring_threads[key]
-    # Opcional: notificar al usuario que el monitoreo se detuvo si fue por inactividad o error
     if not stop_event.is_set():
         bot.send_message(chat_id, f"ℹ️ Monitoreo para '{html_lib.escape(search_term)}' se ha detenido.", parse_mode='HTML')
 
+def product_not_in_history(product_id, user_id, search_term):
+    product_id not in product_history[user_id][search_term]
 
 # --- Handlers de Mensajes y Callbacks (Adaptados) ---
 
@@ -291,7 +281,7 @@ def save_search(message):
             "❌ El término de búsqueda no es válido. Por favor, intenta de nuevo con texto significativo.",
             reply_markup=create_inline_keyboard() # Volver al menú principal
         )
-        user_searches[user_id]['waiting_for_search'] = False # Resetear la bandera de espera
+        user_searches[user_id]['waiting_for_search'] = False
         save_data(user_searches, USER_SEARCHES_FILE, user_searches_lock)
         return
 
@@ -372,8 +362,7 @@ def handle_new_search_callback(call):
      # Establecer el estado de espera para este usuario
      user_searches[user_id]['waiting_for_search'] = True
      save_data(user_searches, USER_SEARCHES_FILE, user_searches_lock)
-     bot.answer_callback_query(call.id) # Ocultar el indicador de "cargando" en el botón
-
+     bot.answer_callback_query(call.id)
 
 @bot.callback_query_handler(func=lambda call: call.data == "list_alerts")
 def handle_list_alerts(call):
@@ -388,7 +377,7 @@ def handle_list_alerts(call):
 
         if not alert_terms:
             message_text = "No tienes alertas configuradas."
-            markup = create_inline_keyboard() # Volver al menú principal
+            markup = create_inline_keyboard()
         else:
             alert_lines = []
             for search in alert_terms:
@@ -427,7 +416,6 @@ def handle_list_alerts(call):
     except Exception as e:
         logger.exception(f"Error listando alertas: {e}")
         bot.answer_callback_query(call.id, "❌ Error al listar alertas.", show_alert=True)
-        # Asegurarse de volver al menú principal en caso de error
         try:
             bot.send_message(chat_id, "Ocurrió un error. Volviendo al menú principal.", reply_markup=create_inline_keyboard())
             try:
@@ -727,11 +715,6 @@ def delete_alert(key, search_term, user_id):
         
         if not user_searches[user_id]:
             del user_searches[user_id]
-
-        if user_id in notified_products and search_term in notified_products[user_id]:
-            del notified_products[user_id][search_term]
-            if not notified_products[user_id]:
-                del notified_products[user_id]
 
         if user_id in product_history and search_term in product_history[user_id]:
             del product_history[user_id][search_term]
@@ -1180,10 +1163,10 @@ if __name__ == '__main__':
     else:
          logger.info("FACEBOOK_COOKIE encontrada. Procediendo.")
 
-    for user_id in list(user_searches.keys()):
+    """ for user_id in list(user_searches.keys()):
         if 'waiting_for_search' in user_searches[user_id]:
             user_searches[user_id]['waiting_for_search'] = False
-            save_data(user_searches, USER_SEARCHES_FILE, user_searches_lock)
+            save_data(user_searches, USER_SEARCHES_FILE, user_searches_lock) """
             
     try:
         user_searches = load_user_searches(USER_SEARCHES_FILE=USER_SEARCHES_FILE, 
