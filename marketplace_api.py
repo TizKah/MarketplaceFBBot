@@ -10,11 +10,10 @@ def fetch_products_graphql(search_term, user_cookie, region, logger):
     
     if not user_cookie:
         logger.error(f"Intento de búsqueda sin cookie para '{search_term}'")
-        return None # No podemos buscar sin cookie
-
+        return None
     request_url = "https://www.facebook.com/api/graphql/"
 
-    # --- Encabezados (Headers) - Copiados exactamente de tu script que funcionaba ---
+    # --- Encabezados (Headers) ---
     headers = {
         'accept': '*/*',
         'accept-language': 'es-ES,es;q=0.6',
@@ -24,7 +23,7 @@ def fetch_products_graphql(search_term, user_cookie, region, logger):
         'origin': 'https://www.facebook.com',
         'pragma': 'no-cache',
         'priority': 'u=1, i',
-        'referer': f'https://www.facebook.com/marketplace/rosario/search?sortBy=creation_time_descend&query={search_term.replace(" ", "%20")}&exact=false',
+        'referer': f'https://www.facebook.com/marketplace/search?sortBy=creation_time_descend&query={search_term.replace(" ", "%20")}&exact=false',
         'sec-ch-ua': '"Brave";v="135", "Not-A.Brand";v="8", "Chromium";v="135"',
         'sec-ch-ua-full-version-list': '"Brave";v="135.0.0.0", "Not-A.Brand";v="8.0.0.0", "Chromium";v="135.0.0.0"',
         'sec-ch-ua-mobile': '?0',
@@ -37,18 +36,18 @@ def fetch_products_graphql(search_term, user_cookie, region, logger):
         'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36',
         'x-asbd-id': '359341',
         'x-fb-friendly-name': 'CometMarketplaceSearchContentPaginationQuery',
-        'x-fb-lsd': 'AVqOd7icdFk', # Nota: Este y otros pueden ser dinámicos
+        'x-fb-lsd': 'AVqOd7icdFk',
     }
 
     # --- Payload (Datos del Formulario) ---
     # Usar los parámetros pasados a la función en lugar de variables hardcodeadas
     variables_dict = {
         "count": 24,
-        "cursor": None, # Asumimos primera página, pasar cursor si se implementa paginación
+        "cursor": None, 
         "params": {
             "bqf": {
                 "callsite": "COMMERCE_MKTPLACE_WWW",
-                "query": search_term # Usar el término de búsqueda pasado
+                "query": search_term 
             },
             "browse_request_params": {
                 "commerce_enable_local_pickup": True,
@@ -107,19 +106,16 @@ def fetch_products_graphql(search_term, user_cookie, region, logger):
         'doc_id': '9082812915151057' # El ID de la query GraphQL
     }
 
-    # --- Realizar la Petición POST - Copiado de tu script ---
+    # --- Realizar la Petición POST ---
     try:
         logger.info(f"Realizando petición GraphQL para: '{search_term}'")
         response = requests.post(request_url, headers=headers, data=payload_data, timeout=DEFAULT_REQUEST_TIMEOUT)
-
-        # Verificar si la petición fue exitosa
         response.raise_for_status()
 
         # Procesar la respuesta JSON
         data = response.json()
 
-        # --- Extraer la información - Lógica de tu script que funcionaba ---
-        # Accede a la lista de 'edges' que contienen cada listado/nodo
+        # --- Extraer la información ---
         feed_units = data.get('data', {}).get('marketplace_search', {}).get('feed_units', {})
         edges = feed_units.get('edges', [])
 
@@ -133,12 +129,10 @@ def fetch_products_graphql(search_term, user_cookie, region, logger):
 
             listing = node.get('listing', {})
             if not listing:
-                # Si el nodo no tiene 'listing', no es un producto (podría ser anuncio, sugerencia, etc.)
                 continue
 
-            # Extrae los datos específicos del listing usando .get()
             listing_id = listing.get('id')
-            if not listing_id: # Necesitamos ID para la URL y seguimiento
+            if not listing_id:
                  logger.warning("Listado encontrado sin ID en la respuesta. Saltando.")
                  continue
 
