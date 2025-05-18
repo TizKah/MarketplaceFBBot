@@ -6,7 +6,7 @@
 
 Cansado de revisar Marketplace a cada rato para ver si aparece ese producto que buscás? Creé este bot de Telegram en Python justo para eso. **Te avisa al instante por Telegram** cuando encuentra productos nuevos en Facebook Marketplace para tus búsquedas.
 
-La clave? **No usa Selenium ni abre navegadores.** Va directo a la API de Facebook (GraphQL) usando la librería `requests`. Es mucho más liviano y rápido.
+**No usa Selenium ni abre navegadores.** Va directo a la API de Facebook (GraphQL) usando la librería `requests`. Es mucho más liviano y rápido.
 
 ## ✨ Qué Puede Hacer?
 
