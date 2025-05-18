@@ -31,7 +31,6 @@ Necesitás tener Python instalado (mejor 3.8+).
 2.  **Instalá lo necesario:**
     ```bash
     pip install -r requirements.txt
-    # requirements.txt tiene que tener: pyTelegramBotAPI, requests, python-dotenv
     ```
 
 3.  **Configurá tus datos:**
